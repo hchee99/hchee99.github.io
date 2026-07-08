@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JLPT 한자 단어 퀴즈</title>
+<style>
+  :root {
+    --bg: #f5f6fa;
+    --card: #ffffff;
+    --text: #2c3040;
+    --sub: #7a8096;
+    --accent: #4f6df5;
+    --accent-dark: #3a55d9;
+    --correct: #22a06b;
+    --correct-bg: #e6f7ef;
+    --wrong: #e5484d;
+    --wrong-bg: #fdecec;
+    --border: #e3e6ef;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Yu Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 24px 12px;
+  }
+  .app { width: 100%; max-width: 560px; }
+  h1 { font-size: 1.5rem; text-align: center; margin-bottom: 4px; }
+  .subtitle { text-align: center; color: var(--sub); font-size: 0.85rem; margin-bottom: 20px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 14px;
+    box-shadow: 0 2px 8px rgba(40,50,90,0.05);
+  }
+  .section-title { font-size: 0.85rem; font-weight: 700; color: var(--sub); margin-bottom: 10px; letter-spacing: 0.03em; }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    border: 1.5px solid var(--border);
+    background: #fff;
+    border-radius: 999px;
+    padding: 8px 16px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.12s;
+    user-select: none;
+  }
+  .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+  .chip:hover { border-color: var(--accent); }
+  .start-btn, .big-btn {
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 15px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.12s;
+    font-family: inherit;
+  }
+  .start-btn:hover, .big-btn:hover { background: var(--accent-dark); }
+  .ghost-btn {
+    width: 100%;
+    background: #fff;
+    color: var(--accent);
+    border: 1.5px solid var(--accent);
+    border-radius: 12px;
+    padding: 13px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 10px;
+    font-family: inherit;
+  }
+  .ghost-btn:hover { background: #eef1fe; }
+  .hidden { display: none !important; }
+
+  /* quiz screen */
+  .quiz-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 0.85rem; color: var(--sub); }
+  .progress-wrap { background: var(--border); border-radius: 99px; height: 8px; overflow: hidden; margin-bottom: 20px; }
+  .progress-bar { background: var(--accent); height: 100%; width: 0%; transition: width 0.25s; }
+  .q-type-badge {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 99px;
+    background: #eef1fe;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+  .level-badge {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 99px;
+    background: #f0f0f5;
+    color: var(--sub);
+    margin-left: 6px;
+  }
+  .kanji-display {
+    font-size: 3.4rem;
+    text-align: center;
+    font-weight: 700;
+    margin: 10px 0 24px;
+    letter-spacing: 0.05em;
+    font-family: "Yu Mincho", "Hiragino Mincho ProN", "MS Mincho", serif;
+  }
+  .options { display: flex; flex-direction: column; gap: 10px; }
+  .opt-btn {
+    background: #fff;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 1.05rem;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.1s;
+    font-family: inherit;
+  }
+  .opt-btn:hover:not(:disabled) { border-color: var(--accent); background: #f7f8ff; }
+  .opt-btn.correct { background: var(--correct-bg); border-color: var(--correct); color: var(--correct); font-weight: 700; }
+  .opt-btn.wrong { background: var(--wrong-bg); border-color: var(--wrong); color: var(--wrong); font-weight: 700; }
+  .opt-btn:disabled { cursor: default; opacity: 0.85; }
+
+  .input-row { display: flex; gap: 8px; }
+  .answer-input {
+    flex: 1;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 13px 14px;
+    font-size: 1.1rem;
+    font-family: inherit;
+    outline: none;
+  }
+  .answer-input:focus { border-color: var(--accent); }
+  .submit-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 0 22px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .input-hint { font-size: 0.8rem; color: var(--sub); margin-top: 8px; }
+
+  .feedback {
+    margin-top: 16px;
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 0.98rem;
+    line-height: 1.7;
+  }
+  .feedback.ok { background: var(--correct-bg); border: 1px solid var(--correct); }
+  .feedback.no { background: var(--wrong-bg); border: 1px solid var(--wrong); }
+  .feedback .fb-title { font-weight: 800; margin-bottom: 4px; }
+  .feedback.ok .fb-title { color: var(--correct); }
+  .feedback.no .fb-title { color: var(--wrong); }
+  .next-btn { margin-top: 14px; }
+
+  /* result */
+  .score-big { font-size: 2.6rem; font-weight: 800; text-align: center; color: var(--accent); margin: 8px 0; }
+  .score-sub { text-align: center; color: var(--sub); margin-bottom: 18px; }
+  .wrong-list { margin-top: 10px; }
+  .wrong-item {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 10px 4px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.98rem;
+  }
+  .wrong-item:last-child { border-bottom: none; }
+  .wrong-item .wk { font-size: 1.25rem; font-weight: 700; min-width: 70px; font-family: "Yu Mincho", serif; }
+  .wrong-item .wr { color: var(--accent); }
+  .wrong-item .wm { color: var(--sub); }
+  .note-info { font-size: 0.85rem; color: var(--sub); text-align: center; margin-top: 8px; }
+  .quit-link { display: block; text-align: center; margin-top: 12px; color: var(--sub); font-size: 0.85rem; cursor: pointer; background: none; border: none; font-family: inherit; text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>🇯🇵 JLPT 한자 단어 퀴즈</h1>
+  <p class="subtitle">한자 · 일본어 읽기 · 한국어 뜻</p>
+
+  <!-- ===== 설정 화면 ===== -->
+  <div id="screen-setup">
+    <div class="card">
+      <div class="section-title">레벨 선택 (여러 개 가능)</div>
+      <div class="chip-row" id="level-chips">
+        <div class="chip on" data-level="5">N5</div>
+        <div class="chip on" data-level="4">N4</div>
+        <div class="chip" data-level="3">N3</div>
+        <div class="chip" data-level="2">N2</div>
+        <div class="chip" data-level="1">N1</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-title">퀴즈 방식</div>
+      <div class="chip-row" id="mode-chips">
+        <div class="chip on" data-mode="choice">객관식 (4지선다)</div>
+        <div class="chip" data-mode="input">직접 입력</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-title">문제 유형</div>
+      <div class="chip-row" id="qtype-chips">
+        <div class="chip on" data-qtype="mix">읽기+뜻 섞어서</div>
+        <div class="chip" data-qtype="reading">읽기만</div>
+        <div class="chip" data-qtype="meaning">뜻만</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-title">문제 수</div>
+      <div class="chip-row" id="count-chips">
+        <div class="chip on" data-count="10">10문제</div>
+        <div class="chip" data-count="20">20문제</div>
+        <div class="chip" data-count="30">30문제</div>
+        <div class="chip" data-count="0">전부</div>
+      </div>
+    </div>
+    <button class="start-btn" id="btn-start">퀴즈 시작 ▶</button>
+    <button class="ghost-btn hidden" id="btn-review">📕 오답 노트 다시 풀기 (<span id="review-count">0</span>단어)</button>
+    <p class="note-info" id="word-total"></p>
+  </div>
+
+  <!-- ===== 퀴즈 화면 ===== -->
+  <div id="screen-quiz" class="hidden">
+    <div class="quiz-top">
+      <span id="q-progress-text">1 / 10</span>
+      <span id="q-score-text">점수 0</span>
+    </div>
+    <div class="progress-wrap"><div class="progress-bar" id="progress-bar"></div></div>
+    <div class="card">
+      <span class="q-type-badge" id="q-type-badge">읽는 법은?</span><span class="level-badge" id="q-level-badge">N5</span>
+      <div class="kanji-display" id="kanji-display">学生</div>
+
+      <div class="options" id="options-box"></div>
+
+      <div id="input-box" class="hidden">
+        <div class="input-row">
+          <input type="text" class="answer-input" id="answer-input" autocomplete="off" placeholder="정답 입력">
+          <button class="submit-btn" id="btn-submit">확인</button>
+        </div>
+        <p class="input-hint" id="input-hint"></p>
+      </div>
+
+      <div id="feedback" class="feedback hidden"></div>
+      <button class="big-btn next-btn hidden" id="btn-next">다음 문제 →</button>
+    </div>
+    <button class="quit-link" id="btn-quit">그만하고 처음으로</button>
+  </div>
+
+  <!-- ===== 결과 화면 ===== -->
+  <div id="screen-result" class="hidden">
+    <div class="card">
+      <div class="section-title" style="text-align:center">퀴즈 완료! 🎉</div>
+      <div class="score-big" id="result-score">8 / 10</div>
+      <div class="score-sub" id="result-percent">정답률 80%</div>
+      <div id="result-wrong-wrap">
+        <div class="section-title">❌ 틀린 단어</div>
+        <div class="wrong-list" id="result-wrong-list"></div>
+        <p class="note-info">틀린 단어는 오답 노트에 자동 저장돼요. 맞히면 노트에서 빠져요.</p>
+      </div>
+    </div>
+    <button class="big-btn" id="btn-retry-wrong">틀린 문제만 다시 풀기</button>
+    <button class="ghost-btn" id="btn-home">처음으로</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// 단어 데이터  { k: 한자, r: 읽기(히라가나), m: 한국어 뜻, l: 레벨 }
+// 단어를 추가하고 싶으면 아래 형식대로 한 줄 추가하면 됩니다.
+// ============================================================
+const WORDS = [
+  // ---------- N5 ----------
+  {k:"学生",r:"がくせい",m:"학생",l:5},
+  {k:"先生",r:"せんせい",m:"선생님",l:5},
+  {k:"学校",r:"がっこう",m:"학교",l:5},
+  {k:"会社",r:"かいしゃ",m:"회사",l:5},
+  {k:"電車",r:"でんしゃ",m:"전철",l:5},
+  {k:"時間",r:"じかん",m:"시간",l:5},
+  {k:"毎日",r:"まいにち",m:"매일",l:5},
+  {k:"今日",r:"きょう",m:"오늘",l:5},
+  {k:"明日",r:"あした",m:"내일",l:5},
+  {k:"昨日",r:"きのう",m:"어제",l:5},
+  {k:"天気",r:"てんき",m:"날씨",l:5},
+  {k:"雨",r:"あめ",m:"비",l:5},
+  {k:"雪",r:"ゆき",m:"눈(날씨)",l:5},
+  {k:"山",r:"やま",m:"산",l:5},
+  {k:"川",r:"かわ",m:"강, 시내",l:5},
+  {k:"海",r:"うみ",m:"바다",l:5},
+  {k:"空",r:"そら",m:"하늘",l:5},
+  {k:"花",r:"はな",m:"꽃",l:5},
+  {k:"木",r:"き",m:"나무",l:5},
+  {k:"犬",r:"いぬ",m:"개",l:5},
+  {k:"猫",r:"ねこ",m:"고양이",l:5},
+  {k:"魚",r:"さかな",m:"물고기, 생선",l:5},
+  {k:"鳥",r:"とり",m:"새",l:5},
+  {k:"肉",r:"にく",m:"고기",l:5},
+  {k:"野菜",r:"やさい",m:"채소",l:5},
+  {k:"果物",r:"くだもの",m:"과일",l:5},
+  {k:"水",r:"みず",m:"물",l:5},
+  {k:"牛乳",r:"ぎゅうにゅう",m:"우유",l:5},
+  {k:"家族",r:"かぞく",m:"가족",l:5},
+  {k:"父",r:"ちち",m:"아버지",l:5},
+  {k:"母",r:"はは",m:"어머니",l:5},
+  {k:"兄",r:"あに",m:"형, 오빠",l:5},
+  {k:"姉",r:"あね",m:"누나, 언니",l:5},
+  {k:"友達",r:"ともだち",m:"친구",l:5},
+  {k:"名前",r:"なまえ",m:"이름",l:5},
+  {k:"国",r:"くに",m:"나라",l:5},
+  {k:"外国",r:"がいこく",m:"외국",l:5},
+  {k:"言葉",r:"ことば",m:"말, 언어",l:5},
+  {k:"英語",r:"えいご",m:"영어",l:5},
+  {k:"本",r:"ほん",m:"책",l:5},
+  {k:"新聞",r:"しんぶん",m:"신문",l:5},
+  {k:"辞書",r:"じしょ",m:"사전",l:5},
+  {k:"手紙",r:"てがみ",m:"편지",l:5},
+  {k:"写真",r:"しゃしん",m:"사진",l:5},
+  {k:"映画",r:"えいが",m:"영화",l:5},
+  {k:"音楽",r:"おんがく",m:"음악",l:5},
+  {k:"部屋",r:"へや",m:"방",l:5},
+  {k:"家",r:"いえ",m:"집",l:5},
+  {k:"店",r:"みせ",m:"가게",l:5},
+  {k:"駅",r:"えき",m:"역",l:5},
+  // ---------- N4 ----------
+  {k:"世界",r:"せかい",m:"세계",l:4},
+  {k:"社会",r:"しゃかい",m:"사회",l:4},
+  {k:"文化",r:"ぶんか",m:"문화",l:4},
+  {k:"場所",r:"ばしょ",m:"장소",l:4},
+  {k:"地図",r:"ちず",m:"지도",l:4},
+  {k:"住所",r:"じゅうしょ",m:"주소",l:4},
+  {k:"予定",r:"よてい",m:"예정",l:4},
+  {k:"用事",r:"ようじ",m:"볼일, 용무",l:4},
+  {k:"約束",r:"やくそく",m:"약속",l:4},
+  {k:"準備",r:"じゅんび",m:"준비",l:4},
+  {k:"練習",r:"れんしゅう",m:"연습",l:4},
+  {k:"復習",r:"ふくしゅう",m:"복습",l:4},
+  {k:"予習",r:"よしゅう",m:"예습",l:4},
+  {k:"説明",r:"せつめい",m:"설명",l:4},
+  {k:"紹介",r:"しょうかい",m:"소개",l:4},
+  {k:"案内",r:"あんない",m:"안내",l:4},
+  {k:"招待",r:"しょうたい",m:"초대",l:4},
+  {k:"会議",r:"かいぎ",m:"회의",l:4},
+  {k:"会話",r:"かいわ",m:"회화, 대화",l:4},
+  {k:"意味",r:"いみ",m:"의미",l:4},
+  {k:"質問",r:"しつもん",m:"질문",l:4},
+  {k:"問題",r:"もんだい",m:"문제",l:4},
+  {k:"宿題",r:"しゅくだい",m:"숙제",l:4},
+  {k:"試験",r:"しけん",m:"시험",l:4},
+  {k:"成績",r:"せいせき",m:"성적",l:4},
+  {k:"入学",r:"にゅうがく",m:"입학",l:4},
+  {k:"卒業",r:"そつぎょう",m:"졸업",l:4},
+  {k:"留学",r:"りゅうがく",m:"유학",l:4},
+  {k:"研究",r:"けんきゅう",m:"연구",l:4},
+  {k:"発音",r:"はつおん",m:"발음",l:4},
+  {k:"文法",r:"ぶんぽう",m:"문법",l:4},
+  {k:"小説",r:"しょうせつ",m:"소설",l:4},
+  {k:"趣味",r:"しゅみ",m:"취미",l:4},
+  {k:"興味",r:"きょうみ",m:"흥미, 관심",l:4},
+  {k:"安心",r:"あんしん",m:"안심",l:4},
+  {k:"安全",r:"あんぜん",m:"안전",l:4},
+  {k:"危険",r:"きけん",m:"위험",l:4},
+  {k:"注意",r:"ちゅうい",m:"주의",l:4},
+  {k:"故障",r:"こしょう",m:"고장",l:4},
+  {k:"修理",r:"しゅうり",m:"수리",l:4},
+  {k:"運転",r:"うんてん",m:"운전",l:4},
+  {k:"交通",r:"こうつう",m:"교통",l:4},
+  {k:"事故",r:"じこ",m:"사고",l:4},
+  {k:"怪我",r:"けが",m:"부상, 상처",l:4},
+  {k:"病気",r:"びょうき",m:"병, 질병",l:4},
+  {k:"気分",r:"きぶん",m:"기분",l:4},
+  {k:"気持ち",r:"きもち",m:"기분, 마음",l:4},
+  {k:"心配",r:"しんぱい",m:"걱정",l:4},
+  {k:"残念",r:"ざんねん",m:"유감, 아쉬움",l:4},
+  {k:"失礼",r:"しつれい",m:"실례",l:4},
+  // ---------- N3 ----------
+  {k:"経験",r:"けいけん",m:"경험",l:3},
+  {k:"経済",r:"けいざい",m:"경제",l:3},
+  {k:"政治",r:"せいじ",m:"정치",l:3},
+  {k:"法律",r:"ほうりつ",m:"법률",l:3},
+  {k:"状態",r:"じょうたい",m:"상태",l:3},
+  {k:"情報",r:"じょうほう",m:"정보",l:3},
+  {k:"環境",r:"かんきょう",m:"환경",l:3},
+  {k:"影響",r:"えいきょう",m:"영향",l:3},
+  {k:"原因",r:"げんいん",m:"원인",l:3},
+  {k:"結果",r:"けっか",m:"결과",l:3},
+  {k:"理由",r:"りゆう",m:"이유",l:3},
+  {k:"目的",r:"もくてき",m:"목적",l:3},
+  {k:"方法",r:"ほうほう",m:"방법",l:3},
+  {k:"内容",r:"ないよう",m:"내용",l:3},
+  {k:"性格",r:"せいかく",m:"성격",l:3},
+  {k:"態度",r:"たいど",m:"태도",l:3},
+  {k:"関係",r:"かんけい",m:"관계",l:3},
+  {k:"印象",r:"いんしょう",m:"인상",l:3},
+  {k:"想像",r:"そうぞう",m:"상상",l:3},
+  {k:"記憶",r:"きおく",m:"기억",l:3},
+  {k:"感情",r:"かんじょう",m:"감정",l:3},
+  {k:"感覚",r:"かんかく",m:"감각",l:3},
+  {k:"意見",r:"いけん",m:"의견",l:3},
+  {k:"意識",r:"いしき",m:"의식",l:3},
+  {k:"知識",r:"ちしき",m:"지식",l:3},
+  {k:"常識",r:"じょうしき",m:"상식",l:3},
+  {k:"責任",r:"せきにん",m:"책임",l:3},
+  {k:"権利",r:"けんり",m:"권리",l:3},
+  {k:"義務",r:"ぎむ",m:"의무",l:3},
+  {k:"制度",r:"せいど",m:"제도",l:3},
+  {k:"組織",r:"そしき",m:"조직",l:3},
+  {k:"活動",r:"かつどう",m:"활동",l:3},
+  {k:"行動",r:"こうどう",m:"행동",l:3},
+  {k:"生産",r:"せいさん",m:"생산",l:3},
+  {k:"消費",r:"しょうひ",m:"소비",l:3},
+  {k:"貿易",r:"ぼうえき",m:"무역",l:3},
+  {k:"輸出",r:"ゆしゅつ",m:"수출",l:3},
+  {k:"輸入",r:"ゆにゅう",m:"수입",l:3},
+  {k:"増加",r:"ぞうか",m:"증가",l:3},
+  {k:"減少",r:"げんしょう",m:"감소",l:3},
+  {k:"変化",r:"へんか",m:"변화",l:3},
+  {k:"発展",r:"はってん",m:"발전",l:3},
+  {k:"進歩",r:"しんぽ",m:"진보",l:3},
+  {k:"解決",r:"かいけつ",m:"해결",l:3},
+  {k:"判断",r:"はんだん",m:"판단",l:3},
+  {k:"決定",r:"けってい",m:"결정",l:3},
+  {k:"選択",r:"せんたく",m:"선택",l:3},
+  {k:"比較",r:"ひかく",m:"비교",l:3},
+  {k:"調査",r:"ちょうさ",m:"조사",l:3},
+  {k:"確認",r:"かくにん",m:"확인",l:3},
+  // ---------- N2 ----------
+  {k:"把握",r:"はあく",m:"파악",l:2},
+  {k:"維持",r:"いじ",m:"유지",l:2},
+  {k:"依存",r:"いぞん",m:"의존",l:2},
+  {k:"拡大",r:"かくだい",m:"확대",l:2},
+  {k:"縮小",r:"しゅくしょう",m:"축소",l:2},
+  {k:"削減",r:"さくげん",m:"삭감",l:2},
+  {k:"妥当",r:"だとう",m:"타당",l:2},
+  {k:"矛盾",r:"むじゅん",m:"모순",l:2},
+  {k:"詳細",r:"しょうさい",m:"상세",l:2},
+  {k:"省略",r:"しょうりゃく",m:"생략",l:2},
+  {k:"徹底",r:"てってい",m:"철저",l:2},
+  {k:"妥協",r:"だきょう",m:"타협",l:2},
+  {k:"出版",r:"しゅっぱん",m:"출판",l:2},
+  {k:"翻訳",r:"ほんやく",m:"번역",l:2},
+  {k:"通訳",r:"つうやく",m:"통역",l:2},
+  {k:"講義",r:"こうぎ",m:"강의",l:2},
+  {k:"講演",r:"こうえん",m:"강연",l:2},
+  {k:"論文",r:"ろんぶん",m:"논문",l:2},
+  {k:"資料",r:"しりょう",m:"자료",l:2},
+  {k:"資源",r:"しげん",m:"자원",l:2},
+  {k:"資本",r:"しほん",m:"자본",l:2},
+  {k:"利益",r:"りえき",m:"이익",l:2},
+  {k:"損害",r:"そんがい",m:"손해",l:2},
+  {k:"契約",r:"けいやく",m:"계약",l:2},
+  {k:"交渉",r:"こうしょう",m:"교섭, 협상",l:2},
+  {k:"取引",r:"とりひき",m:"거래",l:2},
+  {k:"経営",r:"けいえい",m:"경영",l:2},
+  {k:"企業",r:"きぎょう",m:"기업",l:2},
+  {k:"産業",r:"さんぎょう",m:"산업",l:2},
+  {k:"農業",r:"のうぎょう",m:"농업",l:2},
+  {k:"従業員",r:"じゅうぎょういん",m:"종업원, 직원",l:2},
+  {k:"上司",r:"じょうし",m:"상사",l:2},
+  {k:"同僚",r:"どうりょう",m:"동료",l:2},
+  {k:"出張",r:"しゅっちょう",m:"출장",l:2},
+  {k:"残業",r:"ざんぎょう",m:"야근, 잔업",l:2},
+  {k:"就職",r:"しゅうしょく",m:"취직",l:2},
+  {k:"転職",r:"てんしょく",m:"이직",l:2},
+  {k:"給料",r:"きゅうりょう",m:"급여, 월급",l:2},
+  {k:"税金",r:"ぜいきん",m:"세금",l:2},
+  {k:"予算",r:"よさん",m:"예산",l:2},
+  {k:"貯金",r:"ちょきん",m:"저금",l:2},
+  {k:"保険",r:"ほけん",m:"보험",l:2},
+  {k:"年金",r:"ねんきん",m:"연금",l:2},
+  {k:"福祉",r:"ふくし",m:"복지",l:2},
+  {k:"医療",r:"いりょう",m:"의료",l:2},
+  {k:"手術",r:"しゅじゅつ",m:"수술",l:2},
+  {k:"診察",r:"しんさつ",m:"진찰",l:2},
+  {k:"症状",r:"しょうじょう",m:"증상",l:2},
+  {k:"回復",r:"かいふく",m:"회복",l:2},
+  {k:"栄養",r:"えいよう",m:"영양",l:2},
+  // ---------- N1 ----------
+  {k:"顕著",r:"けんちょ",m:"현저함",l:1},
+  {k:"曖昧",r:"あいまい",m:"애매함",l:1},
+  {k:"懸念",r:"けねん",m:"우려, 걱정",l:1},
+  {k:"危惧",r:"きぐ",m:"우려, 염려",l:1},
+  {k:"葛藤",r:"かっとう",m:"갈등",l:1},
+  {k:"摩擦",r:"まさつ",m:"마찰",l:1},
+  {k:"洞察",r:"どうさつ",m:"통찰",l:1},
+  {k:"示唆",r:"しさ",m:"시사, 암시",l:1},
+  {k:"憶測",r:"おくそく",m:"억측",l:1},
+  {k:"錯覚",r:"さっかく",m:"착각",l:1},
+  {k:"融通",r:"ゆうずう",m:"융통",l:1},
+  {k:"貢献",r:"こうけん",m:"공헌",l:1},
+  {k:"促進",r:"そくしん",m:"촉진",l:1},
+  {k:"抑制",r:"よくせい",m:"억제",l:1},
+  {k:"阻止",r:"そし",m:"저지",l:1},
+  {k:"排除",r:"はいじょ",m:"배제",l:1},
+  {k:"網羅",r:"もうら",m:"망라",l:1},
+  {k:"匹敵",r:"ひってき",m:"필적",l:1},
+  {k:"該当",r:"がいとう",m:"해당",l:1},
+  {k:"遂行",r:"すいこう",m:"수행",l:1},
+  {k:"履行",r:"りこう",m:"이행",l:1},
+  {k:"循環",r:"じゅんかん",m:"순환",l:1},
+  {k:"浸透",r:"しんとう",m:"침투",l:1},
+  {k:"変遷",r:"へんせん",m:"변천",l:1},
+  {k:"推移",r:"すいい",m:"추이",l:1},
+  {k:"動向",r:"どうこう",m:"동향",l:1},
+  {k:"兆候",r:"ちょうこう",m:"징후, 조짐",l:1},
+  {k:"措置",r:"そち",m:"조치",l:1},
+  {k:"規制",r:"きせい",m:"규제",l:1},
+  {k:"緩和",r:"かんわ",m:"완화",l:1},
+  {k:"撤廃",r:"てっぱい",m:"철폐",l:1},
+  {k:"是正",r:"ぜせい",m:"시정",l:1},
+  {k:"改革",r:"かいかく",m:"개혁",l:1},
+  {k:"革新",r:"かくしん",m:"혁신",l:1},
+  {k:"飛躍",r:"ひやく",m:"비약",l:1},
+  {k:"停滞",r:"ていたい",m:"정체",l:1},
+  {k:"衰退",r:"すいたい",m:"쇠퇴",l:1},
+  {k:"繁栄",r:"はんえい",m:"번영",l:1},
+  {k:"崩壊",r:"ほうかい",m:"붕괴",l:1},
+  {k:"復興",r:"ふっこう",m:"부흥",l:1},
+  {k:"秩序",r:"ちつじょ",m:"질서",l:1},
+  {k:"妥結",r:"だけつ",m:"타결",l:1},
+  {k:"折衝",r:"せっしょう",m:"절충, 협상",l:1},
+  {k:"貫徹",r:"かんてつ",m:"관철",l:1},
+  {k:"露骨",r:"ろこつ",m:"노골적임",l:1},
+  {k:"暴露",r:"ばくろ",m:"폭로",l:1},
+  {k:"克服",r:"こくふく",m:"극복",l:1},
+  {k:"執着",r:"しゅうちゃく",m:"집착",l:1},
+  {k:"辛抱",r:"しんぼう",m:"참음, 인내",l:1},
+  {k:"配慮",r:"はいりょ",m:"배려",l:1},
+];
+
+// ============================================================
+// 로마자 → 히라가나 변환 (일본어 자판 없이도 입력 가능하게)
+// ============================================================
+const ROMA = {
+  kya:"きゃ",kyu:"きゅ",kyo:"きょ",gya:"ぎゃ",gyu:"ぎゅ",gyo:"ぎょ",
+  sha:"しゃ",shu:"しゅ",sho:"しょ",sya:"しゃ",syu:"しゅ",syo:"しょ",
+  ja:"じゃ",ju:"じゅ",jo:"じょ",jya:"じゃ",jyu:"じゅ",jyo:"じょ",zya:"じゃ",zyu:"じゅ",zyo:"じょ",
+  cha:"ちゃ",chu:"ちゅ",cho:"ちょ",tya:"ちゃ",tyu:"ちゅ",tyo:"ちょ",
+  nya:"にゃ",nyu:"にゅ",nyo:"にょ",hya:"ひゃ",hyu:"ひゅ",hyo:"ひょ",
+  bya:"びゃ",byu:"びゅ",byo:"びょ",pya:"ぴゃ",pyu:"ぴゅ",pyo:"ぴょ",
+  mya:"みゃ",myu:"みゅ",myo:"みょ",rya:"りゃ",ryu:"りゅ",ryo:"りょ",
+  shi:"し",chi:"ち",tsu:"つ",
+  ka:"か",ki:"き",ku:"く",ke:"け",ko:"こ",
+  ga:"が",gi:"ぎ",gu:"ぐ",ge:"げ",go:"ご",
+  sa:"さ",si:"し",su:"す",se:"せ",so:"そ",
+  za:"ざ",zi:"じ",zu:"ず",ze:"ぜ",zo:"ぞ",ji:"じ",
+  ta:"た",ti:"ち",tu:"つ",te:"て",to:"と",
+  da:"だ",di:"ぢ",du:"づ",de:"で",do:"ど",
+  na:"な",ni:"に",nu:"ぬ",ne:"ね",no:"の",
+  ha:"は",hi:"ひ",hu:"ふ",he:"へ",ho:"ほ",fu:"ふ",
+  ba:"ば",bi:"び",bu:"ぶ",be:"べ",bo:"ぼ",
+  pa:"ぱ",pi:"ぴ",pu:"ぷ",pe:"ぺ",po:"ぽ",
+  ma:"ま",mi:"み",mu:"む",me:"め",mo:"も",
+  ya:"や",yu:"ゆ",yo:"よ",
+  ra:"ら",ri:"り",ru:"る",re:"れ",ro:"ろ",
+  wa:"わ",wo:"を",
+  a:"あ",i:"い",u:"う",e:"え",o:"お",
+  "-":"ー",
+};
+const CONSONANTS = "kstnhfmyrwgzjdbpc";
+
+function romajiToHiragana(src) {
+  let out = "", i = 0;
+  const s = src.toLowerCase();
+  while (i < s.length) {
+    const c = s[i];
+    // 이미 히라가나/기타 문자는 그대로
+    if (!/[a-z\-]/.test(c)) { out += src[i]; i++; continue; }
+    // nn → ん / n + (모음·y 이외) → ん
+    if (c === "n") {
+      const next = s[i+1];
+      if (next === "n") { out += "ん"; i += 2; continue; }
+      if (next === undefined) { break; } // 아직 입력 중일 수 있으니 보류
+      if (!"aiueoy".includes(next)) { out += "ん"; i++; continue; }
+    }
+    // 촉음(っ): 같은 자음 2번 (nn 제외)
+    if (CONSONANTS.includes(c) && s[i+1] === c && c !== "n") {
+      out += "っ"; i++; continue;
+    }
+    let matched = false;
+    for (const len of [3, 2, 1]) {
+      const part = s.substr(i, len);
+      if (ROMA[part]) { out += ROMA[part]; i += len; matched = true; break; }
+    }
+    if (!matched) { out += src[i]; i++; }
+  }
+  return out;
+}
+// 입력 확정용: 끝의 n도 ん으로 처리
+function finalizeRomaji(src) {
+  let t = romajiToHiragana(src);
+  if (/n$/i.test(src) && !/nn$/i.test(src)) {
+    // romajiToHiragana가 보류한 마지막 n 처리
+    const converted = romajiToHiragana(src.slice(0, -1));
+    if (t === converted) t = converted + "ん";
+  }
+  return t;
+}
+
+// ============================================================
+// 앱 상태
+// ============================================================
+const $ = id => document.getElementById(id);
+const shuffle = arr => { const a = [...arr]; for (let i = a.length-1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]] = [a[j],a[i]]; } return a; };
+
+const state = {
+  levels: new Set([5, 4]),
+  mode: "choice",
+  qtype: "mix",
+  count: 10,
+  queue: [],       // [{word, type}]
+  idx: 0,
+  score: 0,
+  wrongs: [],      // 틀린 word 목록
+  answered: false,
+  isReviewRun: false,
+};
+
+// 오답 노트 (localStorage)
+const NOTE_KEY = "jlptQuizWrongNote";
+function loadNote() { try { return JSON.parse(localStorage.getItem(NOTE_KEY)) || []; } catch { return []; } }
+function saveNote(list) { localStorage.setItem(NOTE_KEY, JSON.stringify(list)); }
+function addToNote(word) {
+  const note = loadNote();
+  if (!note.includes(word.k)) { note.push(word.k); saveNote(note); }
+}
+function removeFromNote(word) {
+  const note = loadNote().filter(k => k !== word.k);
+  saveNote(note);
+}
+function noteWords() {
+  const note = new Set(loadNote());
+  return WORDS.filter(w => note.has(w.k));
+}
+
+// ============================================================
+// 설정 화면
+// ============================================================
+function setupChips(boxId, attr, multi, onChange) {
+  const box = $(boxId);
+  box.addEventListener("click", e => {
+    const chip = e.target.closest(".chip");
+    if (!chip) return;
+    if (multi) {
+      chip.classList.toggle("on");
+      if (!box.querySelector(".chip.on")) chip.classList.add("on"); // 최소 1개
+    } else {
+      box.querySelectorAll(".chip").forEach(c => c.classList.remove("on"));
+      chip.classList.add("on");
+    }
+    onChange();
+  });
+}
+function readSettings() {
+  state.levels = new Set([...$("level-chips").querySelectorAll(".chip.on")].map(c => +c.dataset.level));
+  state.mode = $("mode-chips").querySelector(".chip.on").dataset.mode;
+  state.qtype = $("qtype-chips").querySelector(".chip.on").dataset.qtype;
+  state.count = +$("count-chips").querySelector(".chip.on").dataset.count;
+}
+function updateSetupInfo() {
+  readSettings();
+  const pool = WORDS.filter(w => state.levels.has(w.l));
+  $("word-total").textContent = `선택한 레벨 단어: ${pool.length}개 (전체 ${WORDS.length}개 수록)`;
+  const nw = noteWords();
+  $("btn-review").classList.toggle("hidden", nw.length === 0);
+  $("review-count").textContent = nw.length;
+}
+setupChips("level-chips", "level", true, updateSetupInfo);
+setupChips("mode-chips", "mode", false, updateSetupInfo);
+setupChips("qtype-chips", "qtype", false, updateSetupInfo);
+setupChips("count-chips", "count", false, updateSetupInfo);
+
+// ============================================================
+// 퀴즈 진행
+// ============================================================
+function buildQueue(pool) {
+  let words = shuffle(pool);
+  if (state.count > 0) words = words.slice(0, state.count);
+  return words.map(w => {
+    let type = state.qtype;
+    if (type === "mix") type = Math.random() < 0.5 ? "reading" : "meaning";
+    return { word: w, type };
+  });
+}
+
+function startQuiz(pool, isReview) {
+  readSettings();
+  if (pool.length < 4 && state.mode === "choice") {
+    alert("객관식은 단어가 4개 이상 필요해요. 레벨을 더 선택해 주세요.");
+    return;
+  }
+  state.queue = buildQueue(pool);
+  state.idx = 0;
+  state.score = 0;
+  state.wrongs = [];
+  state.isReviewRun = isReview;
+  $("screen-setup").classList.add("hidden");
+  $("screen-result").classList.add("hidden");
+  $("screen-quiz").classList.remove("hidden");
+  showQuestion();
+}
+
+function currentQ() { return state.queue[state.idx]; }
+
+function showQuestion() {
+  const q = currentQ();
+  state.answered = false;
+  $("q-progress-text").textContent = `${state.idx + 1} / ${state.queue.length}`;
+  $("q-score-text").textContent = `점수 ${state.score}`;
+  $("progress-bar").style.width = `${(state.idx / state.queue.length) * 100}%`;
+  $("q-type-badge").textContent = q.type === "reading" ? "🔤 읽는 법은?" : "🇰🇷 뜻은?";
+  $("q-level-badge").textContent = "N" + q.word.l;
+  $("kanji-display").textContent = q.word.k;
+  $("feedback").classList.add("hidden");
+  $("btn-next").classList.add("hidden");
+
+  if (state.mode === "choice") {
+    $("input-box").classList.add("hidden");
+    renderChoices(q);
+  } else {
+    $("options-box").innerHTML = "";
+    $("input-box").classList.remove("hidden");
+    const input = $("answer-input");
+    input.value = "";
+    input.disabled = false;
+    $("btn-submit").disabled = false;
+    input.placeholder = q.type === "reading" ? "히라가나 또는 로마자 입력" : "한국어 뜻 입력";
+    $("input-hint").textContent = q.type === "reading"
+      ? "로마자로 치면 자동으로 히라가나로 바뀌어요 (예: gakusei → がくせい)"
+      : "뜻이 여러 개면 하나만 맞혀도 정답이에요";
+    input.focus();
+  }
+}
+
+function renderChoices(q) {
+  const box = $("options-box");
+  box.innerHTML = "";
+  const field = q.type === "reading" ? "r" : "m";
+  const answer = q.word[field];
+  // 같은 레벨 우선으로 오답 보기 뽑기
+  let pool = WORDS.filter(w => w.k !== q.word.k && w[field] !== answer);
+  const sameLevel = pool.filter(w => w.l === q.word.l);
+  if (sameLevel.length >= 3) pool = sameLevel;
+  const distractors = [];
+  for (const w of shuffle(pool)) {
+    if (distractors.length >= 3) break;
+    if (!distractors.includes(w[field])) distractors.push(w[field]);
+  }
+  const options = shuffle([answer, ...distractors]);
+  options.forEach(opt => {
+    const btn = document.createElement("button");
+    btn.className = "opt-btn";
+    btn.textContent = opt;
+    btn.addEventListener("click", () => {
+      if (state.answered) return;
+      const ok = opt === answer;
+      box.querySelectorAll(".opt-btn").forEach(b => {
+        b.disabled = true;
+        if (b.textContent === answer) b.classList.add("correct");
+      });
+      if (!ok) btn.classList.add("wrong");
+      finishAnswer(ok);
+    });
+    box.appendChild(btn);
+  });
+}
+
+// 뜻 입력 채점: "형, 오빠" → "형"도 "오빠"도 정답, "눈(날씨)" → "눈"도 정답
+function meaningMatches(word, input) {
+  const norm = s => s.replace(/\s+/g, "").replace(/\(.*?\)/g, "");
+  const user = norm(input);
+  if (!user) return false;
+  if (user === norm(word.m)) return true;
+  return word.m.split(",").some(part => norm(part) === user);
+}
+
+function submitInput() {
+  if (state.answered) return;
+  const q = currentQ();
+  const raw = $("answer-input").value.trim();
+  if (!raw) return;
+  let ok;
+  if (q.type === "reading") {
+    ok = finalizeRomaji(raw).replace(/\s+/g, "") === q.word.r;
+  } else {
+    ok = meaningMatches(q.word, raw);
+  }
+  $("answer-input").disabled = true;
+  $("btn-submit").disabled = true;
+  finishAnswer(ok);
+}
+
+function finishAnswer(ok) {
+  state.answered = true;
+  const q = currentQ();
+  if (ok) {
+    state.score++;
+    removeFromNote(q.word);
+  } else {
+    state.wrongs.push(q.word);
+    addToNote(q.word);
+  }
+  const fb = $("feedback");
+  fb.className = "feedback " + (ok ? "ok" : "no");
+  fb.innerHTML = `
+    <div class="fb-title">${ok ? "⭕ 정답!" : "❌ 오답!"}</div>
+    <div><b>${q.word.k}</b> 〔${q.word.r}〕 — ${q.word.m}</div>`;
+  fb.classList.remove("hidden");
+  $("q-score-text").textContent = `점수 ${state.score}`;
+  const nextBtn = $("btn-next");
+  nextBtn.textContent = state.idx === state.queue.length - 1 ? "결과 보기 🏁" : "다음 문제 →";
+  nextBtn.classList.remove("hidden");
+  nextBtn.focus();
+}
+
+function nextQuestion() {
+  if (state.idx === state.queue.length - 1) { showResult(); return; }
+  state.idx++;
+  showQuestion();
+}
+
+// ============================================================
+// 결과 화면
+// ============================================================
+function showResult() {
+  $("screen-quiz").classList.add("hidden");
+  $("screen-result").classList.remove("hidden");
+  const total = state.queue.length;
+  $("result-score").textContent = `${state.score} / ${total}`;
+  $("result-percent").textContent = `정답률 ${Math.round((state.score / total) * 100)}%`;
+  const wrap = $("result-wrong-wrap");
+  const list = $("result-wrong-list");
+  const retryBtn = $("btn-retry-wrong");
+  if (state.wrongs.length === 0) {
+    wrap.classList.add("hidden");
+    retryBtn.classList.add("hidden");
+    $("result-percent").textContent += " — 완벽해요! 👏";
+  } else {
+    wrap.classList.remove("hidden");
+    retryBtn.classList.remove("hidden");
+    list.innerHTML = state.wrongs.map(w =>
+      `<div class="wrong-item"><span class="wk">${w.k}</span><span class="wr">${w.r}</span><span class="wm">${w.m}</span></div>`
+    ).join("");
+  }
+}
+
+// ============================================================
+// 이벤트 연결
+// ============================================================
+$("btn-start").addEventListener("click", () => {
+  readSettings();
+  startQuiz(WORDS.filter(w => state.levels.has(w.l)), false);
+});
+$("btn-review").addEventListener("click", () => {
+  const nw = noteWords();
+  if (nw.length === 0) return;
+  startQuiz(nw, true);
+});
+$("btn-retry-wrong").addEventListener("click", () => {
+  if (state.wrongs.length === 0) return;
+  startQuiz([...state.wrongs], true);
+});
+$("btn-home").addEventListener("click", goHome);
+$("btn-quit").addEventListener("click", goHome);
+function goHome() {
+  $("screen-quiz").classList.add("hidden");
+  $("screen-result").classList.add("hidden");
+  $("screen-setup").classList.remove("hidden");
+  updateSetupInfo();
+}
+$("btn-next").addEventListener("click", nextQuestion);
+$("btn-submit").addEventListener("click", submitInput);
+$("answer-input").addEventListener("keydown", e => { if (e.key === "Enter") submitInput(); });
+// 로마자 실시간 변환 (읽기 문제일 때만)
+$("answer-input").addEventListener("input", () => {
+  const q = currentQ();
+  if (!q || q.type !== "reading") return;
+  const input = $("answer-input");
+  const converted = romajiToHiragana(input.value);
+  if (converted !== input.value) input.value = converted;
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter" && state.answered && !$("btn-next").classList.contains("hidden")) {
+    nextQuestion();
+  }
+});
+
+updateSetupInfo();
+</script>
+</body>
+</html>
