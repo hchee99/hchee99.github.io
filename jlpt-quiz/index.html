@@ -1641,11 +1641,15 @@ function romajiToHiragana(src) {
     const c = s[i];
     // 이미 히라가나/기타 문자는 그대로
     if (!/[a-z\-]/.test(c)) { out += src[i]; i++; continue; }
-    // nn → ん / n + (모음·y 이외) → ん
+    // n 처리: nn → ん / n+자음 → ん / 단, nna·nni 등은 ん+な행 (예: annai → あんない)
     if (c === "n") {
       const next = s[i+1];
-      if (next === "n") { out += "ん"; i += 2; continue; }
-      if (next === undefined) { break; } // 아직 입력 중일 수 있으니 보류
+      if (next === "n") {
+        const after = s[i+2];
+        if (after !== undefined && "aiueo".includes(after)) { out += "ん"; i++; continue; } // んな/んに...
+        out += "ん"; i += 2; continue; // nn → ん (honnyaku → ほんやく 포함)
+      }
+      if (next === undefined) { out += src[i]; i++; continue; } // 마지막 n은 보류 (na가 될 수도 있으니 화면에 남김)
       if (!"aiueoy".includes(next)) { out += "ん"; i++; continue; }
     }
     // 촉음(っ): 같은 자음 2번 (nn 제외)
@@ -1661,15 +1665,9 @@ function romajiToHiragana(src) {
   }
   return out;
 }
-// 입력 확정용: 끝의 n도 ん으로 처리
+// 입력 확정용: 보류돼 있던 마지막 n을 ん으로 처리 (hon → ほん)
 function finalizeRomaji(src) {
-  let t = romajiToHiragana(src);
-  if (/n$/i.test(src) && !/nn$/i.test(src)) {
-    // romajiToHiragana가 보류한 마지막 n 처리
-    const converted = romajiToHiragana(src.slice(0, -1));
-    if (t === converted) t = converted + "ん";
-  }
-  return t;
+  return romajiToHiragana(src).replace(/n$/i, "ん");
 }
 
 // ============================================================
