@@ -97,6 +97,8 @@
     color: var(--accent);
     margin-bottom: 14px;
   }
+  .q-type-badge.meaning { background: #fef3e2; color: #d97706; }
+  .input-hint.warn { color: #d97706; font-weight: 700; }
   .level-badge {
     display: inline-block;
     font-size: 0.78rem;
@@ -1781,7 +1783,9 @@ function showQuestion() {
   $("q-progress-text").textContent = `${state.idx + 1} / ${state.queue.length}`;
   $("q-score-text").textContent = `점수 ${state.score}`;
   $("progress-bar").style.width = `${(state.idx / state.queue.length) * 100}%`;
-  $("q-type-badge").textContent = q.type === "reading" ? "🔤 읽는 법은?" : "🇰🇷 뜻은?";
+  const typeBadge = $("q-type-badge");
+  typeBadge.textContent = q.type === "reading" ? "🔤 읽는 법은?" : "🇰🇷 뜻은?";
+  typeBadge.classList.toggle("meaning", q.type === "meaning");
   $("q-level-badge").textContent = "N" + q.word.l;
   $("kanji-display").textContent = q.word.k;
   $("feedback").classList.add("hidden");
@@ -1798,9 +1802,10 @@ function showQuestion() {
     input.disabled = false;
     $("btn-submit").disabled = false;
     input.placeholder = q.type === "reading" ? "히라가나 또는 로마자 입력" : "한국어 뜻 입력";
+    $("input-hint").classList.remove("warn");
     $("input-hint").textContent = q.type === "reading"
       ? "로마자로 치면 자동으로 히라가나로 바뀌어요 (예: gakusei → がくせい)"
-      : "뜻이 여러 개면 하나만 맞혀도 정답이에요";
+      : "이 문제는 한국어 뜻을 입력해요! 뜻이 여러 개면 하나만 맞혀도 정답이에요";
     input.focus();
   }
 }
@@ -1859,6 +1864,19 @@ function submitInput() {
   const q = currentQ();
   const raw = $("answer-input").value.trim();
   if (!raw) return;
+  // 문제 유형과 입력 언어가 어긋나면 오답 처리 대신 안내만
+  const hasHangul = /[가-힣]/.test(raw);
+  const hint = $("input-hint");
+  if (q.type === "meaning" && !hasHangul) {
+    hint.textContent = "⚠️ 이 문제는 '뜻'을 묻는 문제예요 — 한국어로 입력해 주세요!";
+    hint.classList.add("warn");
+    return;
+  }
+  if (q.type === "reading" && hasHangul) {
+    hint.textContent = "⚠️ 이 문제는 '읽는 법'을 묻는 문제예요 — 히라가나나 로마자로 입력해 주세요!";
+    hint.classList.add("warn");
+    return;
+  }
   let ok;
   if (q.type === "reading") {
     ok = finalizeRomaji(raw).replace(/\s+/g, "") === q.word.r;
