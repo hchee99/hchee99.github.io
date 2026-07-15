@@ -6667,10 +6667,16 @@ function renderChoices(q) {
     w[field] !== answer &&
     !meaningParts(w).some(p => qParts.includes(p))
   );
-  const sameLevel = pool.filter(w => w.l === q.word.l);
-  if (sameLevel.length >= 3) pool = sameLevel;
+  // 읽기 문제는 히라가나 읽기가 있는 한자 단어만 오답으로 (카타카나·히라가나 단어 제외)
+  if (q.type === "reading") pool = pool.filter(w => /[一-鿿]/.test(w.k) && w.r !== w.k);
+  // 정답과 같은 형태(읽기 끝글자)·같은 레벨을 우선해 오답을 뽑아 난이도를 높임
+  // 예: 高い(たかい) 문제 → 安い·長い 같은 ~い 형용사가 보기로 나옴
+  const endCh = q.word.r.slice(-1);
+  const lv = q.word.l;
+  const rank = w => (w.r.slice(-1) === endCh ? 0 : 2) + (w.l === lv ? 0 : 1);
+  const ranked = shuffle(pool).sort((a, b) => rank(a) - rank(b));
   const distractors = [];
-  for (const w of shuffle(pool)) {
+  for (const w of ranked) {
     if (distractors.length >= 3) break;
     if (!distractors.includes(w[field])) distractors.push(w[field]);
   }
