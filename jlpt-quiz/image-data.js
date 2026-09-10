@@ -1,8 +1,8 @@
 // Static illustrations: generated once, reused without a model call while studying.
 window.VOCAB_IMAGES = Object.freeze({
   "傘": {
-    "src": "./assets/vocab/kasa.webp",
-    "alt": "비 오는 거리에서 노란 우산을 쓴 사람"
+    "src": "./assets/vocab/kasa-v2.webp",
+    "alt": "비 오는 거리에서 노란 우산을 쓴 여성"
   },
   "電車": {
     "src": "./assets/vocab/densha.webp",
@@ -29,12 +29,12 @@ window.VOCAB_IMAGES = Object.freeze({
     "alt": "도서관에서 책을 빌리는 사람"
   },
   "水": {
-    "src": "./assets/vocab/mizu.webp",
-    "alt": "투명한 유리컵으로 물을 마시는 사람"
+    "src": "./assets/vocab/mizu-v2.webp",
+    "alt": "투명한 유리컵으로 물을 마시는 여성"
   },
   "寝る": {
-    "src": "./assets/vocab/neru.webp",
-    "alt": "밤에 이불을 덮고 편안히 자는 사람"
+    "src": "./assets/vocab/neru-v2.webp",
+    "alt": "밤에 이불을 덮고 편안히 자는 여성"
   },
   "走る": {
     "src": "./assets/vocab/hashiru.webp",
