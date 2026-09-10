@@ -39,5 +39,25 @@ window.VOCAB_IMAGES = Object.freeze({
   "走る": {
     "src": "./assets/vocab/hashiru.webp",
     "alt": "아침 햇살이 비치는 공원을 달리는 사람"
+  },
+  "花": {
+    "src": "./assets/vocab/hana.webp",
+    "alt": "정원에 활짝 핀 여러 꽃"
+  },
+  "海": {
+    "src": "./assets/vocab/umi.webp",
+    "alt": "여름 햇살 아래 파도가 밀려오는 푸른 바다"
+  },
+  "山": {
+    "src": "./assets/vocab/yama.webp",
+    "alt": "숲 위로 높이 솟은 산"
+  },
+  "読む": {
+    "src": "./assets/vocab/yomu.webp",
+    "alt": "밤에 조명 아래서 책을 읽는 여성"
+  },
+  "書く": {
+    "src": "./assets/vocab/kaku.webp",
+    "alt": "공책에 연필로 한자를 쓰는 남성"
   }
 });
