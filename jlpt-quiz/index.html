@@ -266,6 +266,14 @@
     padding: 22px 20px; min-height: 380px; display: flex; flex-direction: column;
     box-shadow: 0 2px 10px rgba(40,50,90,0.06);
   }
+  .fc-art { margin: -22px -20px 18px; overflow: hidden; border-radius: 15px 15px 0 0; background: #e9ecf3; }
+  .fc-art img { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1; object-fit: contain; }
+  .flashcard.has-art .fc-word { margin: 14px 0 10px; font-size: clamp(2.5rem, 10vw, 3.6rem); }
+  .flashcard.has-art .fc-reveal { margin-bottom: 0; }
+  .preview-note { text-align: center; color: var(--sub); font-size: 0.8rem; line-height: 1.5; margin: 10px 0; }
+  .preview-nav { display: flex; gap: 12px; margin-top: 14px; }
+  .preview-nav button { margin-top: 0; flex: 1; }
+  .preview-nav button:disabled { opacity: 0.4; cursor: default; }
   .fc-top-row { display: flex; align-items: center; justify-content: space-between; }
   .fc-new-badge { background: #eaf1ff; color: var(--accent); font-size: 0.75rem; font-weight: 800; padding: 4px 12px; border-radius: 99px; }
   .fc-new-badge.review { background: #fef1e0; color: #e08b1a; }
@@ -319,6 +327,11 @@
         <span class="mc-title">퀴즈 풀기</span>
         <span class="mc-desc">객관식·직접 입력으로 실력 점검 · 오답 노트 자동 저장</span>
       </span>
+    </button>
+    <button class="mode-card" id="btn-image-preview">
+      <span class="mc-icon" aria-hidden="true">🖼️</span>
+      <span><span class="mc-title">N5 그림 카드 미리보기</span>
+      <span class="mc-desc">우산 · 전철 · 학교 · 먹다 — 네 장면으로 만나기</span></span>
     </button>
     <div class="home-stat">
       <div><div class="hs-num" id="home-learned">0</div><div class="hs-label">학습한 단어</div></div>
@@ -417,6 +430,14 @@
     <div class="fc-bottom">
       <button class="fc-again" id="fc-again">다시 학습<span class="fk-sub" style="display:block;font-size:0.75rem;font-weight:500;opacity:0.6;margin-top:2px">잠시 후 다시</span></button>
       <button class="fc-known" id="fc-known">알고있음<span class="fk-sub" id="fc-known-sub">다음 복습</span></button>
+    </div>
+    <div id="image-preview-controls" class="hidden">
+      <p class="preview-note">그림 카드 미리보기 · 학습 기록에 반영되지 않아요</p>
+      <div class="preview-nav" aria-label="그림 카드 탐색">
+        <button class="ghost-btn" id="preview-prev">← 이전</button>
+        <button class="ghost-btn" id="preview-next">다음 →</button>
+      </div>
+      <button class="quit-link" id="preview-home">홈으로 돌아가기</button>
     </div>
     <div class="flashcard fc-done hidden" id="flashcard-done">
       <div class="fd-emoji">🎉</div>
@@ -517,6 +538,7 @@
 </div>
 
 <script src="./openjlpt-data.js"></script>
+<script src="./image-data.js"></script>
 <script>
 // ============================================================
 // 단어 데이터  { k: 한자, r: 읽기(히라가나), m: 한국어 뜻, l: 레벨 }
@@ -6875,6 +6897,30 @@ function todayStr(offset = 0) {
 
 const study = { level: 5, queue: [], pos: 0, total: 0, done: null, showM: false, showR: false };
 
+// Preview uses its own queue and reveal state, leaving SRS sessions untouched.
+const imagePreview = { active: false, words: [], pos: 0, showM: true, showR: true };
+const failedVocabImages = new Set();
+
+function openImagePreview() {
+  imagePreview.words = Object.keys(window.VOCAB_IMAGES || {})
+    .map(key => WORDS.find(w => w.l === 5 && w.k === key)).filter(Boolean);
+  if (!imagePreview.words.length) return;
+  Object.assign(imagePreview, { active: true, pos: 0, showM: true, showR: true });
+  showScreen("screen-flashcard");
+  $("fc-title").textContent = "N5 그림 카드 미리보기";
+  $("flashcard-done").classList.add("hidden");
+  $("flashcard-body").classList.remove("hidden");
+  document.querySelector(".fc-bottom").style.display = "none";
+  $("image-preview-controls").classList.remove("hidden");
+  renderCard();
+}
+
+function moveImagePreview(offset) {
+  if (!imagePreview.active) return;
+  imagePreview.pos = Math.max(0, Math.min(imagePreview.words.length - 1, imagePreview.pos + offset));
+  renderCard();
+}
+
 function levelWords(lv) { return WORDS.filter(w => w.l === lv); }
 
 // 대시보드 통계 계산
@@ -6957,6 +7003,8 @@ function buildStudyQueue(lv) {
 }
 
 function startStudySession() {
+  imagePreview.active = false;
+  $("image-preview-controls").classList.add("hidden");
   const q = buildStudyQueue(study.level);
   if (q.length === 0) return;
   study.queue = q.map(w => ({ w, again: false }));
@@ -6989,13 +7037,20 @@ function highlightExample(jp, word) {
 }
 
 function renderCard() {
-  const cur = study.queue[study.pos];
-  if (!cur) { finishStudy(); return; }
-  const w = cur.w;
-  $("fc-progress-text").textContent = `${study.doneKeys.size} / ${study.total}`;
-  $("fc-progress-bar").style.width = `${study.doneKeys.size / study.total * 100}%`;
-
-  const badge = badgeInfo(w);
+  const view = imagePreview.active ? imagePreview : study;
+  const w = imagePreview.active ? imagePreview.words[imagePreview.pos] : study.queue[study.pos]?.w;
+  if (!w) { if (!imagePreview.active) finishStudy(); return; }
+  const count = imagePreview.active ? imagePreview.pos + 1 : study.doneKeys.size;
+  const total = imagePreview.active ? imagePreview.words.length : study.total;
+  $("fc-progress-text").textContent = `${count} / ${total}`;
+  $("fc-progress-bar").style.width = `${count / total * 100}%`;
+  if (imagePreview.active) {
+    $("preview-prev").disabled = imagePreview.pos === 0;
+    $("preview-next").disabled = imagePreview.pos === total - 1;
+  }
+  const art = (window.VOCAB_IMAGES || {})[w.k];
+  const showArt = Boolean(art && !failedVocabImages.has(art.src));
+  const badge = imagePreview.active ? { cls: "", text: "그림 카드" } : badgeInfo(w);
   const ex = EXAMPLES[w.k];
   const hanjaChips = [...new Set(w.k.split(""))].filter(c => KANJI_INFO[c])
     .map(c => `<span class="hanja-chip"><span class="hc-char">${c}</span>${KANJI_INFO[c]}</span>`).join("");
@@ -7011,28 +7066,51 @@ function renderCard() {
 
   // 뒤집기 영역 (의미/히라가나 토글 결과)
   let reveal = "";
-  if (study.showR && hasReading) reveal += `<div class="fr-reading">${w.r}</div>`;
-  if (study.showM) reveal += `<div class="fr-meaning">${w.m}</div>`;
-  if (study.showR && hasReading && hanjaChips) reveal += `<div class="fc-hanja-row">${hanjaChips}</div>`;
+  if (view.showR && hasReading) reveal += `<div class="fr-reading">${w.r}</div>`;
+  if (view.showM) reveal += `<div class="fr-meaning">${w.m}</div>`;
+  if (view.showR && hasReading && hanjaChips) reveal += `<div class="fc-hanja-row">${hanjaChips}</div>`;
   if (reveal) html += `<div class="fc-reveal">${reveal}</div>`;
   else html += `<div style="margin:auto 0"></div>`;
 
   // 예문
   if (ex) {
     html += `<div class="fc-divider"></div><div class="fc-example">${highlightExample(ex.j, w)}`;
-    if (study.showM) html += `<span class="ex-ko">${ex.k}</span>`;
+    if (view.showM) html += `<span class="ex-ko">${ex.k}</span>`;
     html += `</div>`;
   }
 
   html += `<div class="fc-toggle-row">
-      <button class="fc-toggle-btn ${study.showM ? "on" : ""}" data-toggle="m">의미</button>` +
-      (hasReading ? `<button class="fc-toggle-btn ${study.showR ? "on" : ""}" data-toggle="r">히라가나</button>` : ``) +
+      <button class="fc-toggle-btn ${view.showM ? "on" : ""}" data-toggle="m">의미</button>` +
+      (hasReading ? `<button class="fc-toggle-btn ${view.showR ? "on" : ""}" data-toggle="r">히라가나</button>` : ``) +
     `</div>`;
 
-  $("flashcard-body").innerHTML = html;
+  const body = $("flashcard-body");
+  body.innerHTML = html;
+  body.classList.toggle("has-art", showArt);
+  if (showArt) {
+    const figure = document.createElement("figure");
+    figure.className = "fc-art";
+    const img = document.createElement("img");
+    img.alt = art.alt;
+    img.width = 960;
+    img.height = 960;
+    img.decoding = "async";
+    img.addEventListener("error", () => {
+      failedVocabImages.add(art.src);
+      figure.remove();
+      if (!body.querySelector(".fc-art")) body.classList.remove("has-art");
+    }, { once: true });
+    img.src = art.src;
+    figure.appendChild(img);
+    body.prepend(figure);
+  }
+  body.querySelectorAll("[data-toggle]").forEach(btn => {
+    btn.setAttribute("aria-pressed", String(btn.dataset.toggle === "m" ? view.showM : view.showR));
+  });
 }
 
 function gradeCard(known) {
+  if (imagePreview.active) return;
   const cur = study.queue[study.pos];
   if (!cur) return;
   const w = cur.w;
@@ -7097,11 +7175,15 @@ function showScreen(id) {
 // ============================================================
 // 이벤트 연결
 // ============================================================
+$("btn-image-preview").addEventListener("click", openImagePreview);
+$("preview-prev").addEventListener("click", () => moveImagePreview(-1));
+$("preview-next").addEventListener("click", () => moveImagePreview(1));
+$("preview-home").addEventListener("click", goHome);
 $("btn-mode-study").addEventListener("click", openStudy);
 $("btn-mode-quiz").addEventListener("click", () => { showScreen("screen-setup"); updateSetupInfo(); });
 $("study-back").addEventListener("click", goHome);
 $("setup-back").addEventListener("click", goHome);
-$("fc-back").addEventListener("click", () => { if (confirm("학습을 그만두고 대시보드로 갈까요? (지금까지 익힌 단어는 저장됩니다)")) openStudy(); });
+$("fc-back").addEventListener("click", () => { if (imagePreview.active) { goHome(); return; } if (confirm("학습을 그만두고 대시보드로 갈까요? (지금까지 익힌 단어는 저장됩니다)")) openStudy(); });
 $("fc-done-home").addEventListener("click", openStudy);
 $("goal-select").addEventListener("change", e => { setGoal(+e.target.value); renderStudyDash(); });
 $("btn-start-study").addEventListener("click", startStudySession);
@@ -7121,8 +7203,9 @@ $("btn-reset-progress").addEventListener("click", () => {
 $("flashcard-body").addEventListener("click", e => {
   const btn = e.target.closest("[data-toggle]");
   if (!btn) return;
-  if (btn.dataset.toggle === "m") study.showM = !study.showM;
-  else study.showR = !study.showR;
+  const view = imagePreview.active ? imagePreview : study;
+  if (btn.dataset.toggle === "m") view.showM = !view.showM;
+  else view.showR = !view.showR;
   renderCard();
 });
 $("fc-again").addEventListener("click", () => gradeCard(false));
@@ -7144,6 +7227,8 @@ $("btn-retry-wrong").addEventListener("click", () => {
 $("btn-home").addEventListener("click", goHome);
 $("btn-quit").addEventListener("click", goHome);
 function goHome() {
+  imagePreview.active = false;
+  $("image-preview-controls").classList.add("hidden");
   showScreen("screen-home");
   updateHomeStats();
 }
@@ -7166,6 +7251,7 @@ document.addEventListener("keydown", e => {
 
 updateSetupInfo();
 goHome();
+if (new URLSearchParams(location.search).get("preview") === "images") openImagePreview();
 </script>
 </body>
 </html>
